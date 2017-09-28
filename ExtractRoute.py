@@ -68,58 +68,70 @@ class ExtractMan:
 
         # get data of corresponding shuttle according to shuttle_num
         my_matrix = pd.read_csv(filename, header=None)
+        my_matrix_acce = pd.read_csv('Accelerometer.csv', header=None)
+        my_matrix_gyro = pd.read_csv('Gyroscope.csv', header=None)
         if shuttle_num in shuttle_dictionary.keys():
             phone_id = shuttle_dictionary[shuttle_num]
         else:
             print('No corresponding data of this shuttle, please check it again!')
             return -1
         data = my_matrix.loc[my_matrix.loc[:, 1] == phone_id, :]
+        data_acce = my_matrix_acce.loc[my_matrix_acce.loc[:, 1] == phone_id, :]
+        data_gyro = my_matrix_gyro.loc[my_matrix_gyro.loc[:, 1] == phone_id, :]
 
         for temp_schedule in schedule:
             list_schedule = temp_schedule.split(',')
             start_time = date + ' ' + list_schedule[0]
             end_time = date + ' ' + list_schedule[1]
             count = 0       # record count of scope change, if bigger than 10 (20minutes), check this schedule, it must has
+            flag = False
             while 1:        # something happen
+                print count
+                count += 1
                 if count > 10:
                     print '!!!!!!!!!!!!!!!!'
+                    flag = True
                     print 'check route of this driver, some accidents may happens'
                     print temp_schedule
                     print '!!!!!!!!!!!!!!!!'
-                    return -1
+                    break
                 start = self.date_to_timestamp(start_time)*1000
                 end = self.date_to_timestamp(end_time)*1000
                 result = data.loc[(start <= data.loc[:, 2]) & (data.loc[:, 2] < end), :]
+                result_acce = data_acce.loc[(start <= data_acce.loc[:, 2]) & (data_acce.loc[:, 2] < end), :]
+                result_gyro = data_gyro.loc[(start <= data_gyro.loc[:, 2]) & (data_gyro.loc[:, 2] < end), :]
                 # result.to_csv(list_schedule[2] + '_' + file_type + '.csv')
                 print start_time + ' ' + end_time
+                if start >= end:
+                    print 'start time >= end time'
+                    flag = True
+                    break
                 start_lat = result.iloc[0,4]
                 start_lon = result.iloc[0,3]
                 end_lat = result.iloc[-1,4]
                 end_lon = result.iloc[-1,3]
-                print '*****'
-                print start_lat
-                print start_lon
-                print end_lat
-                print end_lon
-                print '*****'
                 distance1 = self.get_distance_hav(self.BuUnionLat, self.BuUnionLon, start_lat, start_lon)
                 distance2 = self.get_distance_hav(self.BuUnionLat, self.BuUnionLon, end_lat, end_lon)
-                print distance1
-                print distance2
-                if distance1 <= 150 and distance2 <= 150:
+                # print distance1
+                # print distance2
+                if distance1 <= 400 and distance2 <= 300:
                     print 'In right scope'
                     break
-                if distance1 > 150:
-                    print 'last driver late'
+                if distance1 > 400:
+                    print 'last driver late or this driver go early'
                     start_time = self.get_new_time_range(start_time, 120)
-                if distance2 > 150:
+                if distance2 > 300:
                     print 'not arrive'
                     end_time = self.get_new_time_range(end_time, 120)
-            result.to_csv(os.path.join(self.PATH,list_schedule[2] + '_' + file_type + '.csv'))
+            if not flag:
+                result.to_csv(os.path.join(self.PATH,list_schedule[2] + '_' + file_type + '.csv'))
+                result_acce.to_csv(os.path.join(self.PATH,list_schedule[2] + '_' + 'acce' + '.csv'))
+                result_gyro.to_csv(os.path.join(self.PATH, list_schedule[2] + '_' + 'gyro' + '.csv'))
+
 
 Zh = ExtractMan()
-# try_schedule = ['18:45,19:25,DCL_OUT_WS_IN','19:30,19:55,RRT','20:00,20:10,UP','20:15,20:55,WS_OUT_DCL_IN']
-try_schedule = ['19:30,19:55,RRT']
-Zh.data_extract('Gps.csv', try_schedule, Zh.SHUTTLE_NUM[1], '2017/8/23', 'gps')
+try_schedule = ['10:30,10:40,UP1','10:45,11:25,DCL_OUT_WS_IN1','11:30,11:40,UP2','11:45,12:25,DCL_OUT_WS_IN2']
+# try_schedule = ['19:30,19:55,RRT']
+Zh.data_extract('Gps.csv', try_schedule, Zh.SHUTTLE_NUM[3], '2017/8/24', 'gps')
 
 
